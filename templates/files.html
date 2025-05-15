@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODESTORM - Explorador de Archivos</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --darker-blue: #091428;
+            --dark-blue: #0A2149;
+            --medium-blue: #1E88E5;
+            --light-blue: #4CB9FF;
+            --highlight-color: #ffc107;
+            --dark-background: #121212;
+            --card-background: #1a1a1a;
+            --card-header: #212529;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+        }
+
+        body {
+            background-color: var(--dark-background);
+            color: var(--text-primary);
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar-futuristic {
+            background: linear-gradient(90deg, var(--darker-blue) 0%, var(--dark-blue) 100%);
+            box-shadow: 0 2px 15px rgba(0, 100, 255, 0.2);
+            border-bottom: 1px solid var(--medium-blue);
+        }
+
+        .card-futuristic {
+            background-color: var(--card-background);
+            border-radius: 0.5rem;
+            border: 1px solid rgba(78, 115, 223, 0.2);
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+
+        .card-header-futuristic {
+            background-color: var(--card-header);
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+            padding: 0.75rem 1.25rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .file-explorer-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(78, 115, 223, 0.1);
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .file-explorer-item:hover {
+            background-color: rgba(30, 136, 229, 0.1);
+        }
+
+        .file-explorer-item .icon {
+            margin-right: 0.75rem;
+            font-size: 1.25rem;
+            width: 1.5rem;
+            text-align: center;
+        }
+
+        .file-explorer-item .file-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-explorer-item .file-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .file-explorer-item .actions {
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .file-explorer-item:hover .actions {
+            opacity: 1;
+        }
+
+        .breadcrumb-futuristic {
+            background-color: rgba(30, 136, 229, 0.05);
+            border-radius: 0.25rem;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .breadcrumb-futuristic .breadcrumb-item a {
+            color: var(--light-blue);
+            text-decoration: none;
+        }
+
+        .breadcrumb-futuristic .breadcrumb-item.active {
+            color: var(--text-primary);
+        }
+
+        .btn-futuristic {
+            background: linear-gradient(135deg, var(--medium-blue) 0%, var(--light-blue) 100%);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .btn-futuristic:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 100, 255, 0.3);
+        }
+
+        .folder-icon {
+            color: var(--highlight-color);
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-connected {
+            background-color: #20c997;
+        }
+
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+
+        .status-connecting {
+            background-color: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .directory-tree {
+            border-right: 1px solid rgba(78, 115, 223, 0.2);
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .tree-item {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .tree-item:hover {
+            background-color: rgba(30, 136, 229, 0.1);
+        }
+
+        .tree-item .icon {
+            margin-right: 0.5rem;
+            width: 1.25rem;
+            text-align: center;
+        }
+
+        .tree-item .tree-toggle {
+            width: 1rem;
+            text-align: center;
+            margin-right: 0.5rem;
+        }
+
+        .tree-children {
+            margin-left: 1.5rem;
+        }
+
+        .btn-action {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .file-preview {
+            background-color: var(--card-background);
+            border-radius: 0.25rem;
+            height: 100%;
+            overflow: auto;
+        }
+
+        .file-preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+        }
+
+        .file-preview-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .file-preview-code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .file-preview-image {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            max-height: 500px;
+            overflow: auto;
+        }
+
+        .file-preview-image img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .modal-futuristic .modal-content {
+            background-color: var(--card-background);
+            border: 1px solid rgba(78, 115, 223, 0.2);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-futuristic .modal-header {
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+            background-color: var(--card-header);
+        }
+
+        .modal-futuristic .modal-footer {
+            border-top: 1px solid rgba(78, 115, 223, 0.2);
+        }
+
+        .file-type-badge {
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            background-color: rgba(78, 115, 223, 0.2);
+            color: var(--light-blue);
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-futuristic sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-braces"></i>
+                Codestorm Assistant
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/chat"><i class="bi bi-chat-dots"></i> Asistente IA</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/files"><i class="bi bi-folder2-open"></i> Explorador</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/code_corrector"><i class="bi bi-bug"></i> Corrector de Código</a>
+                    </li>
+                </ul>
+                <div class="ms-auto d-flex align-items-center">
+                    <span id="workspace-info" class="badge bg-primary me-3">Workspace del Usuario</span>
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator status-disconnected" id="status-indicator" title="Comprobando estado del servidor..."></span>
+                        <span class="small ms-2">Estado del Servidor</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-folder2-open text-info"></i> Explorador de Archivos del Usuario
+            </h1>
+            <div class="d-flex">
+                <button id="refresh-btn" class="btn btn-outline-secondary me-2" title="Refrescar archivos">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-futuristic dropdown-toggle" type="button" id="createDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-plus"></i> Crear
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="createDropdown">
+                        <li><a class="dropdown-item" href="#" id="create-file-btn"><i class="bi bi-file-earmark-plus me-2"></i>Archivo</a></li>
+                        <li><a class="dropdown-item" href="#" id="create-folder-btn"><i class="bi bi-folder-plus me-2"></i>Carpeta</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="upload-file-btn"><i class="bi bi-upload me-2"></i>Subir archivos</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <nav aria-label="breadcrumb" class="breadcrumb-futuristic">
+            <ol class="breadcrumb mb-0" id="path-breadcrumb">
+                <li class="breadcrumb-item"><a href="#" data-path="."><i class="bi bi-house-door"></i> /</a></li>
+                <li class="breadcrumb-item active">workspace</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <!-- Directory Tree -->
+            <div class="col-md-3 d-none d-md-block">
+                <div class="card card-futuristic h-100">
+                    <div class="card-header card-header-futuristic">
+                        <i class="bi bi-folder-symlink me-2"></i>Estructura de Directorios
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="directory-tree" id="directory-tree">
+                            <!-- Tree will be populated by JavaScript -->
+                            <div class="tree-item" data-path=".">
+                                <span class="tree-toggle"><i class="bi bi-caret-right-fill"></i></span>
+                                <span class="icon"><i class="bi bi-folder-fill folder-icon"></i></span>
+                                <span class="name">workspace</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File List -->
+            <div class="col-md-9 col-lg-5">
+                <div class="card card-futuristic h-100">
+                    <div class="card-header card-header-futuristic d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-files me-2"></i>Archivos</span>
+                        <div class="input-group" style="max-width: 250px;">
+                            <input type="text" class="form-control form-control-sm" placeholder="Buscar archivos..." id="search-input">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" id="search-btn">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="files-container" class="file-explorer">
+                            <!-- File list will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Preview -->
+            <div class="col-lg-4 d-none d-lg-block mt-3 mt-lg-0">
+                <div class="card card-futuristic h-100">
+                    <div class="card-header card-header-futuristic d-flex justify-content-between align-items-center">
+                        <span id="preview-title"><i class="bi bi-eye me-2"></i>Vista Previa</span>
+                        <div>
+                            <button id="open-editor-btn" class="btn btn-sm btn-outline-light" style="display: none;">
+                                <i class="bi bi-pencil"></i> Editar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="file-preview" class="file-preview">
+                            <div class="file-preview-placeholder">
+                                <i class="bi bi-file-earmark"></i>
+                                <p>Selecciona un archivo para ver su contenido</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+
+    <!-- Modal Crear Archivo -->
+    <div class="modal fade modal-futuristic" id="createFileModal" tabindex="-1" aria-labelledby="createFileModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createFileModalLabel"><i class="bi bi-file-earmark-plus me-2"></i>Crear Nuevo Archivo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-file-form">
+                        <div class="mb-3">
+                            <label for="file-name" class="form-label">Nombre del archivo:</label>
+                            <input type="text" class="form-control" id="file-name" placeholder="ejemplo.txt">
+                        </div>
+                        <div class="mb-3">
+                            <label for="file-content" class="form-label">Contenido inicial:</label>
+                            <textarea class="form-control" id="file-content" rows="8"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-futuristic" id="save-file-btn">Crear Archivo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Carpeta -->
+    <div class="modal fade modal-futuristic" id="createFolderModal" tabindex="-1" aria-labelledby="createFolderModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createFolderModalLabel"><i class="bi bi-folder-plus me-2"></i>Crear Nueva Carpeta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-folder-form">
+                        <div class="mb-3">
+                            <label for="folder-name" class="form-label">Nombre de la carpeta:</label>
+                            <input type="text" class="form-control" id="folder-name" placeholder="mi_carpeta">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-futuristic" id="save-folder-btn">Crear Carpeta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Eliminar -->
+    <div class="modal fade modal-futuristic" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel"><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="delete-modal-body">
+                    ¿Estás seguro de que deseas eliminar este elemento?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirm-delete-btn">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones -->
+    <div id="notifications" class="position-fixed top-0 end-0 p-3" style="z-index: 5000;"></div>
+
+    <footer class="footer mt-auto py-3" style="background: linear-gradient(90deg, var(--darker-blue) 0%, var(--dark-blue) 100%);">
+        <div class="container text-center">
+            <span class="text-light">CODESTORM-Assistant © 2025 | Herramienta de Desarrollo Impulsada por IA</span>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="/static/js/file-actions.js"></script>
+    <script src="/static/js/file-sync.js"></script>
+</body>
+</html>

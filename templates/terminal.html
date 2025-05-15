@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal - Codestorm Assistant</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/style.css" rel="stylesheet">
+    <style>
+        .terminal-container {
+            background-color: #121212;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 60vh;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            background: linear-gradient(90deg, #001020 0%, #001f3f 100%);
+            padding: 10px 15px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            background-color: #000000;
+        }
+
+        .prompt {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .terminal-input-container {
+            display: flex;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-input {
+            flex: 1;
+            background-color: #121212;
+            border: none;
+            color: #00ff00;
+            padding: 10px 15px;
+            font-family: 'Courier New', monospace;
+            outline: none;
+        }
+
+        .terminal-execute {
+            background: linear-gradient(90deg, #001f3f 0%, #003366 100%);
+            border: none;
+            color: white;
+            padding: 0 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .terminal-execute:hover {
+            background: linear-gradient(90deg, #003366 0%, #004080 100%);
+        }
+
+        .command-history {
+            margin-bottom: 20px;
+        }
+
+        .command-entry {
+            margin-bottom: 10px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .command-result {
+            white-space: pre-wrap;
+            color: #cccccc;
+            margin-top: 5px;
+            padding-left: 15px;
+        }
+
+        .command-error {
+            color: #ff6b6b;
+        }
+
+        /* Scrollbar styling */
+        .terminal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal-body::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .terminal-body::-webkit-scrollbar-thumb {
+            background-color: #333;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark futuristic-navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-braces me-2 text-gold"></i>
+                <span class="codestorm-logo">Codestorm Assistant</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house me-1"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/chat"><i class="bi bi-chat-dots me-1"></i> Asistente IA</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/files"><i class="bi bi-folder2-open me-1"></i> Explorador</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/terminal"><i class="bi bi-terminal me-1"></i> Terminal</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/code_corrector"><i class="bi bi-bug me-1"></i> Corrector de Código</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/preview"><i class="bi bi-eye me-1"></i> Previsualización</a>
+                    </li>
+                </ul>
+                <div class="ms-auto workspace-status">
+                    <span id="workspace-info" class="workspace-badge">
+                        <i class="bi bi-folder2"></i> Workspace: default
+                    </span>
+                    <div class="status-container">
+                        <span class="status-indicator status-connected" id="status-indicator"></span>
+                        <span>Estado del Servidor</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido principal -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Estructura del Filesystem</span>
+                        <button id="refresh-fs-btn" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="filesystem-container" class="p-2 filesystem-container">
+                            <div class="d-flex align-items-center mb-2 pb-2 border-bottom">
+                                <i class="bi bi-folder2-open me-2 text-warning"></i>
+                                <span id="current-dir">/ (root)</span>
+                            </div>
+                            <div id="filesystem-tree">
+                                <div class="directory-loading">
+                                    Cargando estructura de archivos...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Terminal</span>
+                        <div>
+                            <button id="clear-terminal-btn" class="btn btn-sm btn-outline-secondary me-2">
+                                <i class="bi bi-trash"></i> Limpiar
+                            </button>
+                            <div class="dropdown d-inline">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="commonCommandsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Comandos comunes
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="commonCommandsDropdown">
+                                    <li><a class="dropdown-item common-command" href="#" data-command="ls -la">ls -la (Listar archivos)</a></li>
+                                    <li><a class="dropdown-item common-command" href="#" data-command="pwd">pwd (Directorio actual)</a></li>
+                                    <li><a class="dropdown-item common-command" href="#" data-command="mkdir test_dir">mkdir (Crear directorio)</a></li>
+                                    <li><a class="dropdown-item common-command" href="#" data-command="touch test_file.txt">touch (Crear archivo)</a></li>
+                                    <li><a class="dropdown-item common-command" href="#" data-command="cat">cat (Ver archivo)</a></li>
+                                    <li><a class="dropdown-item common-command" href="#" data-command="rm">rm (Eliminar archivo)</a></li>
+                                    <li><a class="dropdown-item common-command" href="#" data-command="find . -type f -name '*.py'">find (Buscar archivos)</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="terminal-container">
+                            <div class="terminal-header">
+                                <div>Codestorm Terminal v1.0</div>
+                                <div>
+                                    <span id="terminal-status" class="badge bg-success">Conectado</span>
+                                </div>
+                            </div>
+                            <div id="terminal-body" class="terminal-body">
+                                <div class="welcome-message">
+                                    <p>¡Bienvenido a Codestorm Terminal!</p>
+                                    <p>Puedes ejecutar comandos de shell como en un terminal Linux.</p>
+                                    <p>Escribe 'help' para ver comandos disponibles.</p>
+                                </div>
+                                <div id="command-history" class="command-history">
+                                </div>
+                            </div>
+                            <div class="terminal-input-container">
+                                <input type="text" id="terminal-input" class="terminal-input" placeholder="Ingresa un comando..." autocomplete="off">
+                                <button id="terminal-execute" class="terminal-execute">
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-5 py-3 bg-dark">
+        <div class="container text-center">
+            <span class="text-muted">Codestorm-Assistant © 2025 | Herramienta de Desarrollo Impulsada por IA</span>
+        </div>
+    </footer>
+
+    <!-- JavaScript de Bootstrap y jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- JavaScript personalizado -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const terminalInput = document.getElementById('terminal-input');
+            const terminalExecute = document.getElementById('terminal-execute');
+            const terminalBody = document.getElementById('terminal-body');
+            const commandHistory = document.getElementById('command-history');
+            const clearTerminalBtn = document.getElementById('clear-terminal-btn');
+            const refreshFsBtn = document.getElementById('refresh-fs-btn');
+            const filesystemTree = document.getElementById('filesystem-tree');
+
+            // Historial de comandos
+            let history = [];
+            let historyIndex = -1;
+
+            // Cargar estructura de archivos
+            function loadFilesystem() {
+                filesystemTree.innerHTML = `<div class="directory-loading">Cargando...</div>`;
+
+                fetch('/api/files')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            filesystemTree.innerHTML = '';
+                            if (data.files.length === 0) {
+                                filesystemTree.innerHTML = `<div class="no-files">No hay archivos en este directorio</div>`;
+                                return;
+                            }
+
+                            data.files.forEach(file => {
+                                const fileIcon = file.type === 'directory' ? 'bi-folder-fill text-warning' : 'bi-file-earmark text-muted';
+                                const fileElement = document.createElement('div');
+                                fileElement.className = 'file-item d-flex align-items-center py-1';
+                                fileElement.innerHTML = `
+                                    <i class="bi ${fileIcon} me-2"></i>
+                                    <span>${file.name}</span>
+                                `;
+                                filesystemTree.appendChild(fileElement);
+                            });
+                        } else {
+                            filesystemTree.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                        }
+                    })
+                    .catch(error => {
+                        filesystemTree.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                    });
+            }
+
+            // Ejecutar comando en la terminal
+            function executeCommand(command) {
+                if (!command.trim()) return;
+
+                // Añadir al historial
+                history.push(command);
+                historyIndex = history.length;
+
+                // Mostrar el comando en la terminal
+                const commandEntry = document.createElement('div');
+                commandEntry.className = 'command-entry';
+                commandEntry.innerHTML = `<div><span class="prompt">user@codestorm:~$</span> ${command}</div>`;
+                commandHistory.appendChild(commandEntry);
+
+                // Ejecutar el comando a través de la API
+                fetch('/api/execute_command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'command-result';
+
+                    if (data.error) {
+                        resultElement.classList.add('command-error');
+                        resultElement.textContent = data.error;
+                    } else {
+                        // Mostrar stdout o stderr si está disponible
+                        const output = data.stdout || data.stderr || 'Comando ejecutado (sin salida)';
+                        resultElement.textContent = output;
+                    }
+
+                    commandEntry.appendChild(resultElement);
+
+                    // Actualizar la estructura de archivos si el comando pudo haber cambiado algo
+                    if (command.includes('mkdir') || command.includes('touch') || 
+                        command.includes('rm') || command.includes('cp') ||
+                        command.includes('mv')) {
+                        loadFilesystem();
+                    }
+
+                    // Scroll al final
+                    terminalBody.scrollTop = terminalBody.scrollHeight;
+                })
+                .catch(error => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'command-result command-error';
+                    resultElement.textContent = `Error: ${error.message}`;
+                    commandEntry.appendChild(resultElement);
+
+                    // Scroll al final
+                    terminalBody.scrollTop = terminalBody.scrollHeight;
+                });
+
+                // Limpiar el input
+                terminalInput.value = '';
+
+                // Scroll al final
+                terminalBody.scrollTop = terminalBody.scrollHeight;
+            }
+
+            // Event listeners
+            terminalExecute.addEventListener('click', () => {
+                executeCommand(terminalInput.value);
+            });
+
+            terminalInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    executeCommand(terminalInput.value);
+                } else if (e.key === 'ArrowUp') {
+                    // Navegar el historial hacia arriba
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        terminalInput.value = history[historyIndex];
+                    }
+                    e.preventDefault();
+                } else if (e.key === 'ArrowDown') {
+                    // Navegar el historial hacia abajo
+                    if (historyIndex < history.length - 1) {
+                        historyIndex++;
+                        terminalInput.value = history[historyIndex];
+                    } else if (historyIndex === history.length - 1) {
+                        historyIndex = history.length;
+                        terminalInput.value = '';
+                    }
+                    e.preventDefault();
+                }
+            });
+
+            clearTerminalBtn.addEventListener('click', () => {
+                commandHistory.innerHTML = '';
+            });
+
+            refreshFsBtn.addEventListener('click', () => {
+                loadFilesystem();
+            });
+
+            // Comandos comunes
+            document.querySelectorAll('.common-command').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const command = e.target.getAttribute('data-command');
+                    terminalInput.value = command;
+                    terminalInput.focus();
+                });
+            });
+
+            // Cargar estructura de archivos al iniciar
+            loadFilesystem();
+
+            // Focus en el input al cargar
+            terminalInput.focus();
+        });
+    </script>
+    <!-- Load Socket.IO first to avoid conflicts -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+</body>
+</html>

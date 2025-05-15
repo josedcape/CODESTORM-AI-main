@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Inteligente - Codestorm</title>
+
+    <!-- Bootstrap CSS y Monaco Editor -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+    <!-- Socket.IO debe cargarse antes de cualquier script que lo use -->
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+
+    <style>
+        :root {
+            --darker-blue: #091428;
+            --dark-blue: #0A2149;
+            --medium-blue: #1E88E5;
+            --light-blue: #4CB9FF;
+            --highlight-color: #ffc107;
+            --dark-background: #121212;
+            --card-background: #1a1a1a;
+            --card-header: #212529;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+        }
+
+        body {
+            background-color: var(--dark-background);
+            color: var(--text-primary);
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar-futuristic {
+            background: linear-gradient(90deg, var(--darker-blue) 0%, var(--dark-blue) 100%);
+            box-shadow: 0 2px 15px rgba(0, 100, 255, 0.2);
+            border-bottom: 1px solid var(--medium-blue);
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 56px);
+        }
+
+        .workspace-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .explorer-panel {
+            width: 300px;
+            background-color: var(--card-background);
+            border-right: 1px solid rgba(78, 115, 223, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .explorer-header {
+            padding: 10px;
+            background-color: var(--card-header);
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .explorer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+
+        .file-item:hover {
+            background-color: rgba(30, 136, 229, 0.1);
+        }
+
+        .file-item .icon {
+            margin-right: 8px;
+        }
+
+        .directory {
+            color: var(--highlight-color);
+        }
+
+        .folder-content {
+            margin-left: 20px;
+        }
+
+        .terminal-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            padding: 10px;
+            background-color: var(--card-header);
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #monaco-editor-container {
+            flex: 1;
+            min-height: 200px;
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+        }
+
+        .input-container {
+            padding: 10px;
+            background-color: var(--card-background);
+            display: flex;
+            border-top: 1px solid rgba(78, 115, 223, 0.2);
+        }
+
+        .terminal-input {
+            flex: 1;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 8px 12px;
+            margin-right: 8px;
+        }
+
+        .terminal-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.4);
+        }
+
+        .model-selector {
+            padding: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+
+        .model-selector:focus {
+            outline: none;
+        }
+
+        .send-button {
+            background-color: var(--medium-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        .send-button:hover {
+            background-color: var(--light-blue);
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background-color: #28a745;
+        }
+
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+
+        .status-connecting {
+            background-color: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .folder-toggle {
+            cursor: pointer;
+            width: 16px;
+            display: inline-block;
+            text-align: center;
+            margin-right: 5px;
+        }
+
+        .command-type {
+            background-color: rgba(78, 115, 223, 0.2);
+            color: var(--light-blue);
+            font-size: 0.8rem;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        .notifications {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 350px;
+            z-index: 1050;
+        }
+
+        .notification {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s, fadeOut 0.5s 4.5s;
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        .notification-success {
+            background-color: rgba(40, 167, 69, 0.9);
+            color: white;
+        }
+
+        .notification-error {
+            background-color: rgba(220, 53, 69, 0.9);
+            color: white;
+        }
+
+        .notification-info {
+            background-color: rgba(23, 162, 184, 0.9);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            0% { transform: translateX(100%); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-futuristic">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-braces"></i> Codestorm Assistant
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/chat"><i class="bi bi-chat-dots"></i> Asistente IA</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/files"><i class="bi bi-folder2-open"></i> Explorador</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/terminal"><i class="bi bi-terminal"></i> Terminal</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/xterm_terminal"><i class="bi bi-terminal-fill"></i> Terminal XTerm</a>
+                    </li>
+                </ul>
+                <div class="ms-auto d-flex align-items-center">
+                    <div class="d-flex align-items-center me-3">
+                        <span class="status-indicator status-disconnected" id="status-indicator"></span>
+                        <span id="connection-status">Desconectado</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-light" id="clear-terminal-btn">
+                        <i class="bi bi-trash"></i> Limpiar Terminal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="workspace-container">
+            <div class="explorer-panel">
+                <div class="explorer-header">
+                    <h5 class="mb-0"><i class="bi bi-folder2-open"></i> Explorador</h5>
+                    <button class="btn btn-sm btn-outline-secondary" id="refresh-explorer-btn">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="explorer-content" id="explorer-container">
+                    <div class="text-center p-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Cargando archivos...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="terminal-panel">
+                <div class="terminal-header">
+                    <h5 class="mb-0"><i class="bi bi-terminal"></i> Terminal Inteligente</h5>
+                    <span id="cwd-display">Directorio: ./</span>
+                </div>
+                <div class="terminal-content">
+                    <div id="monaco-editor-container"></div>
+                    <div class="input-container">
+                        <select class="model-selector" id="model-selector">
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="gemini">Gemini</option>
+                        </select>
+                        <input type="text" class="terminal-input" id="terminal-input" 
+                               placeholder="Ingresa un comando o instrucción en lenguaje natural...">
+                        <button class="send-button" id="send-button">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notifications" id="notifications-container"></div>
+
+    <!-- JavaScript -->
+    <!-- Load Socket.IO first to avoid conflicts -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables globales
+            let editor;
+            let currentDirectory = '.';
+            let socket;
+            let isConnected = false;
+            let fileStructure = {};
+            const userId = 'default';
+
+            // Referencias a elementos DOM
+            const terminalInput = document.getElementById('terminal-input');
+            const sendButton = document.getElementById('send-button');
+            const modelSelector = document.getElementById('modelSelector');
+            const statusIndicator = document.getElementById('status-indicator');
+            const connectionStatus = document.getElementById('connection-status');
+            const cwdDisplay = document.getElementById('cwd-display');
+            const clearTerminalBtn = document.getElementById('clear-terminal-btn');
+            const refreshExplorerBtn = document.getElementById('refresh-explorer-btn');
+            const explorerContainer = document.getElementById('explorer-container');
+
+            // Inicializar Monaco Editor
+            if (typeof require !== 'undefined') {
+                require.config({ 
+                    paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' },
+                    // Evitar cargas duplicadas
+                    ignoreDuplicateModules: ["vs/editor/editor.main"]
+                });
+
+                require(['vs/editor/editor.main'], function() {
+                    editor = monaco.editor.create(document.getElementById('monaco-editor-container'), {
+                    value: '// Terminal Inteligente de Codestorm\n// Escribe comandos bash o instrucciones en lenguaje natural\n\n',
+                    language: 'plaintext',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false,
+                    readOnly: true,
+                    minimap: {
+                        enabled: false
+                    },
+                    wordWrap: 'on'
+                });
+
+                // Una vez inicializado el editor, conectar WebSocket
+                    initializeWebSocket();
+
+                    // Cargar el explorador de archivos
+                    loadDirectoryContents(currentDirectory);
+                });
+            } else {
+                console.error('Require.js no está disponible');
+                document.getElementById('monaco-editor-container').innerHTML = '<div class="p-3 text-danger">Error al cargar el editor de código</div>';
+            }
+
+            // Inicializar conexión WebSocket
+            function initializeWebSocket() {
+                updateConnectionStatus('connecting');
+
+                try {
+                    // Verificar que io esté definido
+                    if (typeof io === 'undefined') {
+                        console.error('Socket.IO no está cargado correctamente');
+                        appendToTerminal('\n[Error] Error de conexión: Socket.IO no está disponible\n', 'error');
+                        updateConnectionStatus('disconnected');
+                        return;
+                    }
+
+                    socket = io({
+                        transports: ['websocket', 'polling'],
+                        reconnection: true,
+                        reconnectionAttempts: 5,
+                        reconnectionDelay: 1000
+                    });
+
+                socket.on('connect', function() {
+                    console.log('Conectado al servidor WebSocket');
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+
+                    // Añadir mensaje de bienvenida
+                    appendToTerminal('\n[Sistema] Conexión establecida con el servidor\n', 'success');
+                    appendToTerminal('[Sistema] Puedes ejecutar comandos bash directamente o usar lenguaje natural\n', 'info');
+                    appendToTerminal('[Sistema] Ejemplos: "ls -la" o "crea una carpeta llamada proyectos"\n\n', 'info');
+                });
+
+                socket.on('disconnect', function() {
+                    console.log('Desconectado del servidor WebSocket');
+                    isConnected = false;
+                    updateConnectionStatus('disconnected');
+                    appendToTerminal('\n[Sistema] Desconectado del servidor. Intentando reconectar...\n', 'error');
+                });
+
+                socket.on('reconnect', function() {
+                    console.log('Reconectado al servidor WebSocket');
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+                    appendToTerminal('\n[Sistema] Reconectado al servidor\n', 'success');
+                });
+
+                socket.on('command_result', function(data) {
+                    console.log('Resultado del comando recibido:', data);
+
+                    const prefix = data.success ? '$ ' : 'Error: ';
+                    const output = prefix + data.command + '\n' + data.output;
+                    appendToTerminal(output, data.success ? 'command' : 'error');
+
+                    // Actualizar el explorador de archivos después de ejecutar comandos
+                    if (data.success) {
+                        // Detectar si el comando podría modificar archivos
+                        const fileModCommands = ['mkdir', 'touch', 'rm', 'cp', 'mv', 'git', 'echo'];
+                        const shouldRefresh = fileModCommands.some(cmd => data.command.startsWith(cmd));
+
+                        if (shouldRefresh) {
+                            // Esperar un momento para que los cambios se reflejen
+                            setTimeout(() => loadDirectoryContents(currentDirectory), 500);
+                        }
+
+                        // Actualizar directorio actual si es un comando cd
+                        if (data.command.startsWith('cd ')) {
+                            updateCurrentDirectory(data);
+                        }
+                    }
+                });
+
+                socket.on('assistant_response', function(data) {
+                    console.log('Respuesta del asistente recibida:', data);
+
+                    if (data.success) {
+                        appendToTerminal('\n[Asistente] ' + data.explanation + '\n', 'assistant');
+
+                        if (data.command) {
+                            appendToTerminal('Ejecutando: ' + data.command + '\n', 'command-preview');
+                            // El comando se ejecuta automáticamente si auto_execute es true
+                        }
+                    } else {
+                        appendToTerminal('\n[Error] ' + data.error + '\n', 'error');
+                    }
+                });
+
+                socket.on('directory_contents', function(data) {
+                    console.log('Contenido del directorio recibido:', data);
+
+                    if (data.success) {
+                        updateExplorer(data.path, data.contents);
+                    } else {
+                        showNotification('Error al cargar archivos: ' + data.error, 'error');
+                    }
+                });
+
+                socket.on('file_created', function(data) {
+                    console.log('Archivo creado:', data);
+                    showNotification('Archivo creado: ' + data.path.split('/').pop(), 'success');
+                    loadDirectoryContents(currentDirectory);
+                });
+
+                socket.on('directory_created', function(data) {
+                    console.log('Directorio creado:', data);
+                    showNotification('Directorio creado: ' + data.path.split('/').pop(), 'success');
+                    loadDirectoryContents(currentDirectory);
+                });
+
+                socket.on('file_deleted', function(data) {
+                    console.log('Archivo eliminado:', data);
+                    showNotification('Eliminado: ' + data.path.split('/').pop(), 'info');
+                    loadDirectoryContents(currentDirectory);
+                });
+
+                socket.on('file_modified', function(data) {
+                    console.log('Archivo modificado:', data);
+                    showNotification('Modificado: ' + data.path.split('/').pop(), 'info');
+                    loadDirectoryContents(currentDirectory);
+                });
+
+                socket.on('file_moved', function(data) {
+                    console.log('Archivo movido:', data);
+                    showNotification('Movido: ' + data.src_path.split('/').pop() + ' → ' + data.dest_path.split('/').pop(), 'info');
+                    loadDirectoryContents(currentDirectory);
+                });
+
+                socket.on('error', function(error) {
+                    console.error('Error de WebSocket:', error);
+                    appendToTerminal('\n[Error] ' + error + '\n', 'error');
+                });
+
+                } catch (e) {
+                    console.error('Error al inicializar WebSocket:', e);
+                    appendToTerminal('\n[Error] Error al inicializar la conexión: ' + e.message + '\n', 'error');
+                    updateConnectionStatus('disconnected');
+                }
+            }
+
+            // Actualizar estado de conexión
+            function updateConnectionStatus(status) {
+                statusIndicator.classList.remove('status-connected', 'status-disconnected', 'status-connecting');
+
+                switch (status) {
+                    case 'connected':
+                        statusIndicator.classList.add('status-connected');
+                        connectionStatus.textContent = 'Conectado';
+                        break;
+
+                    case 'disconnected':
+                        statusIndicator.classList.add('status-disconnected');
+                        connectionStatus.textContent = 'Desconectado';
+                        break;
+
+                    case 'connecting':
+                        statusIndicator.classList.add('status-connecting');
+                        connectionStatus.textContent = 'Conectando...';
+                        break;
+                }
+            }
+
+            // Añadir texto al terminal
+            function appendToTerminal(text, type = 'default') {
+                const model = editor.getModel();
+                const lastLine = model.getLineCount();
+                const lastColumn = model.getLineMaxColumn(lastLine);
+
+                let formattedText = text;
+                let decorationClass = '';
+
+                switch (type) {
+                    case 'success':
+                        formattedText = '\x1b[32m' + text + '\x1b[0m'; // Verde
+                        break;
+
+                    case 'error':
+                        formattedText = '\x1b[31m' + text + '\x1b[0m'; // Rojo
+                        break;
+
+                    case 'info':
+                        formattedText = '\x1b[36m' + text + '\x1b[0m'; // Cian
+                        break;
+
+                    case 'command':
+                        formattedText = '\x1b[33m' + text + '\x1b[0m'; // Amarillo
+                        break;
+
+                    case 'assistant':
+                        formattedText = '\x1b[35m' + text + '\x1b[0m'; // Magenta
+                        break;
+
+                    case 'command-preview':
+                        formattedText = '\x1b[90m' + text + '\x1b[0m'; // Gris
+                        break;
+                }
+
+                editor.executeEdits('', [
+                    {
+                        range: {
+                            startLineNumber: lastLine,
+                            startColumn: lastColumn,
+                            endLineNumber: lastLine,
+                            endColumn: lastColumn
+                        },
+                        text: formattedText
+                    }
+                ]);
+
+                // Scroll al final
+                editor.revealLine(editor.getModel().getLineCount());
+            }
+
+            // Manejar envío de comandos
+            function handleInput() {
+                const input = terminalInput.value.trim();
+                if (!input) return;
+
+                // Mostrar el comando en el terminal
+                appendToTerminal('\n$ ' + input + '\n', 'command');
+
+                // Verificar si el socket está inicializado
+                if (!socket || !socket.connected) {
+                    appendToTerminal('\n[Error] No hay conexión con el servidor. Intentando reconectar...\n', 'error');
+                    // Intentar inicializar de nuevo
+                    initializeWebSocket();
+                    return;
+                }
+
+                // Determinar si es comando bash o lenguaje natural
+                const isBashCommand = /^[a-z]+(?: -[a-zA-Z]+)* |^cd |^ls |^mkdir |^rm |^touch |^cp |^mv |^echo |^cat |^grep |^find |^git /i.test(input);
+
+                if (isBashCommand) {
+                    // Enviar comando bash
+                    socket.emit('bash_command', {
+                        command: input,
+                        user_id: userId
+                    });
+                } else {
+                    // Enviar como lenguaje natural
+                    const modelValue = document.getElementById('model-selector').value;
+                    socket.emit('natural_language', {
+                        text: input,
+                        model: modelValue,
+                        user_id: userId
+                    });
+                }
+
+                // Limpiar el input
+                terminalInput.value = '';
+            }
+
+            // Cargar contenidos del directorio
+            function loadDirectoryContents(path) {
+                if (!isConnected) {
+                    showNotification('No hay conexión con el servidor', 'error');
+                    return;
+                }
+
+                explorerContainer.innerHTML = `
+                    <div class="text-center p-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Cargando archivos...</p>
+                    </div>
+                `;
+
+                socket.emit('list_directory', {
+                    path: path,
+                    user_id: userId
+                });
+            }
+
+            // Actualizar el explorador de archivos
+            function updateExplorer(path, contents) {
+                currentDirectory = path;
+                cwdDisplay.textContent = 'Directorio: ' + (path === '.' ? './' : path);
+
+                // Ordenar: primero directorios, luego archivos
+                const sortedContents = [...contents].sort((a, b) => {
+                    if (a.is_directory && !b.is_directory) return -1;
+                    if (!a.is_directory && b.is_directory) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+
+                // Limpiar explorador
+                explorerContainer.innerHTML = '';
+
+                // Añadir opción para subir un nivel si no estamos en la raíz
+                if (path !== '.') {
+                    const parentDir = path.split('/').slice(0, -1).join('/') || '.';
+                    const upItem = document.createElement('div');
+                    upItem.className = 'file-item';
+                    upItem.innerHTML = `<i class="bi bi-arrow-up-circle icon"></i> ..`;
+                    upItem.addEventListener('click', () => loadDirectoryContents(parentDir));
+                    explorerContainer.appendChild(upItem);
+                }
+
+                // Mostrar directorios y archivos
+                if (sortedContents.length > 0) {
+                    sortedContents.forEach(item => {
+                        const fileItem = document.createElement('div');
+                        fileItem.className = 'file-item';
+
+                        let icon = 'bi-file-earmark';
+                        if (item.is_directory) {
+                            icon = 'bi-folder-fill directory';
+                        } else {
+                            // Determinar icono basado en extensión
+                            const ext = item.name.split('.').pop().toLowerCase();
+                            if (['js', 'ts'].includes(ext)) icon = 'bi-filetype-js';
+                            else if (['html', 'htm'].includes(ext)) icon = 'bi-filetype-html';
+                            else if (['css'].includes(ext)) icon = 'bi-filetype-css';
+                            else if (['py'].includes(ext)) icon = 'bi-filetype-py';
+                            else if (['json'].includes(ext)) icon = 'bi-filetype-json';
+                            else if (['md'].includes(ext)) icon = 'bi-filetype-md';
+                            else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) icon = 'bi-file-earmark-image';
+                        }
+
+                        fileItem.innerHTML = `<i class="bi ${icon} icon"></i> ${item.name}`;
+
+                        if (item.is_directory) {
+                            fileItem.addEventListener('click', () => {
+                                const newPath = path === '.' ? item.name : `${path}/${item.name}`;
+                                loadDirectoryContents(newPath);
+                            });
+                        } else {
+                            // Para archivos podríamos añadir una acción como vista previa
+                            fileItem.addEventListener('click', () => {
+                                const filePath = path === '.' ? item.name : `${path}/${item.name}`;
+                                appendToTerminal(`\n[Info] Seleccionado: ${filePath}\n`, 'info');
+                                appendToTerminal(`Sugerencia: Para ver el contenido puedes usar "cat ${filePath}"\n`, 'info');
+                            });
+                        }
+
+                        explorerContainer.appendChild(fileItem);
+                    });
+                } else {
+                    // Directorio vacío
+                    const emptyDir = document.createElement('div');
+                    emptyDir.className = 'text-center p-3';
+                    emptyDir.innerHTML = `
+                        <i class="bi bi-folder-x" style="font-size: 2rem; opacity: 0.5;"></i>
+                        <p class="mt-2 text-muted">Directorio vacío</p>
+                    `;
+                    explorerContainer.appendChild(emptyDir);
+                }
+            }
+
+            // Actualizar directorio actual basado en comando cd
+            function updateCurrentDirectory(commandResult) {
+                if (commandResult.success) {
+                    // Extraer nueva ruta del comando cd
+                    const cdCommand = commandResult.command;
+                    const targetPath = cdCommand.substring(3).trim();
+
+                    // Manejar rutas relativas y absolutas
+                    if (targetPath.startsWith('/')) {
+                        currentDirectory = targetPath.slice(1); // Eliminar / inicial
+                    } else if (targetPath === '..') {
+                        // Subir un nivel
+                        currentDirectory = currentDirectory.split('/').slice(0, -1).join('/') || '.';
+                    } else if (targetPath === '.') {
+                        // Mantener igual
+                    } else if (targetPath === '~') {
+                        // Ir a home
+                        currentDirectory = '.';
+                    } else {
+                        // Ruta relativa
+                        currentDirectory = currentDirectory === '.' ? 
+                            targetPath : `${currentDirectory}/${targetPath}`;
+                    }
+
+                    // Actualizar interfaz
+                    cwdDisplay.textContent = 'Directorio: ' + 
+                        (currentDirectory === '.' ? './' : currentDirectory);
+
+                    // Cargar contenido del nuevo directorio
+                    loadDirectoryContents(currentDirectory);
+                }
+            }
+
+            // Mostrar notificaciones en pantalla
+            function showNotification(message, type = 'info') {
+                const notificationsContainer = document.getElementById('notifications-container');
+                const notification = document.createElement('div');
+                notification.className = `notification notification-${type}`;
+                notification.textContent = message;
+
+                notificationsContainer.appendChild(notification);
+
+                // Eliminar después de 5 segundos
+                setTimeout(() => {
+                    notification.remove();
+                }, 5000);
+            }
+
+            // Event listeners
+            terminalInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    handleInput();
+                }
+            });
+
+            sendButton.addEventListener('click', handleInput);
+
+            clearTerminalBtn.addEventListener('click', function() {
+                editor.setValue('// Terminal limpiado\n\n');
+            });
+
+            refreshExplorerBtn.addEventListener('click', function() {
+                loadDirectoryContents(currentDirectory);
+            });
+
+            // Enfocar input al iniciar
+            setTimeout(() => {
+                terminalInput.focus();
+            }, 500);
+        });
+    </script>
+</body>
+</html>
