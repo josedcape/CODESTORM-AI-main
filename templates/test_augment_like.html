@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba de Integración Estilo Augment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/variables.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/monaco-terminal.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/augment-notifications.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/terminal-styles.css') }}" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.6.0/socket.io.js"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e9ecef;
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        .card {
+            background-color: #1a1a1a;
+            border: 1px solid rgba(78, 115, 223, 0.2);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            background-color: #212529;
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+            padding: 15px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .input-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(78, 115, 223, 0.2);
+            border-radius: 4px;
+            color: #e9ecef;
+            padding: 10px 12px;
+            margin-right: 10px;
+        }
+
+        .send-button {
+            background-color: #1E88E5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+        .result-container {
+            background-color: #212529;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .result-success {
+            color: #28a745;
+        }
+
+        .result-error {
+            color: #dc3545;
+        }
+
+        .result-info {
+            color: #17a2b8;
+        }
+
+        .file-preview {
+            background-color: #212529;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .file-preview pre {
+            color: #e9ecef;
+            margin: 0;
+        }
+
+        .file-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+        }
+
+        .file-preview-title {
+            font-weight: bold;
+            color: #4CB9FF;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4"><i class="bi bi-braces"></i> Prueba de Integración Estilo Augment</h1>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-terminal"></i> Procesador de Lenguaje Natural</h5>
+            </div>
+            <div class="card-body">
+                <div class="input-container">
+                    <input type="text" id="natural-input" class="terminal-input"
+                           placeholder="Escribe una instrucción en lenguaje natural (ej: 'crea una página web con un mensaje de bienvenida')">
+                    <button id="process-button" class="send-button">
+                        <i class="bi bi-send"></i> Procesar
+                    </button>
+                </div>
+
+                <div class="result-container" id="result-container">
+                    <div class="result-info">Escribe una instrucción y haz clic en "Procesar" para comenzar.</div>
+                </div>
+
+                <!-- Terminal Output -->
+                <div class="terminal-container" id="terminal-container">
+                    <div class="terminal-header">
+                        <span class="terminal-title">Terminal</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="clear-terminal-button">
+                            <i class="bi bi-trash"></i> Limpiar
+                        </button>
+                    </div>
+                    <div class="terminal-output" id="terminal-output"></div>
+                </div>
+
+                <div id="file-preview-container" style="display: none;">
+                    <div class="file-preview-header">
+                        <div class="file-preview-title" id="file-preview-title">archivo.txt</div>
+                        <button class="btn btn-sm btn-outline-primary" id="copy-content-button">
+                            <i class="bi bi-clipboard"></i> Copiar
+                        </button>
+                    </div>
+                    <div class="file-preview" id="file-preview">
+                        <pre id="file-content"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Instrucciones</h5>
+            </div>
+            <div class="card-body">
+                <p>Esta página demuestra la funcionalidad de procesamiento de lenguaje natural similar a Augment. Puedes probar los siguientes tipos de instrucciones:</p>
+
+                <ul>
+                    <li><strong>Crear archivos:</strong> "Crea una página web con un mensaje de bienvenida y estilo moderno"</li>
+                    <li><strong>Modificar archivos:</strong> "Cambia el color de fondo a azul" (después de crear un archivo)</li>
+                    <li><strong>Ejecutar comandos:</strong> "Crea una carpeta llamada proyectos"</li>
+                </ul>
+
+                <p>El sistema analizará tu instrucción y realizará las acciones correspondientes automáticamente.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="notifications" id="notifications-container"></div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/augment-socket.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/augment-terminal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/augment-like-processor.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Referencias a elementos DOM
+            const naturalInput = document.getElementById('natural-input');
+            const processButton = document.getElementById('process-button');
+            const resultContainer = document.getElementById('result-container');
+            const filePreviewContainer = document.getElementById('file-preview-container');
+            const filePreviewTitle = document.getElementById('file-preview-title');
+            const fileContent = document.getElementById('file-content');
+            const copyContentButton = document.getElementById('copy-content-button');
+            const notificationsContainer = document.getElementById('notifications-container');
+            const clearTerminalButton = document.getElementById('clear-terminal-button');
+            const terminalContainer = document.getElementById('terminal-container');
+            const terminalOutput = document.getElementById('terminal-output');
+
+            // Inicializar Socket.IO
+            const socketConnection = new AugmentSocket({
+                debug: true,
+                autoConnect: true
+            });
+
+            // Inicializar terminal
+            const terminal = new AugmentTerminal({
+                containerId: 'terminal-container',
+                outputId: 'terminal-output'
+            });
+
+            // Esperar a que Socket.IO se conecte
+            socketConnection.connect().then(socket => {
+                console.log('Socket.IO conectado correctamente');
+                showNotification('Conectado al servidor Socket.IO', 'success');
+
+                // Asignar socket a terminal
+                terminal.setSocket(socket);
+
+                // Mostrar mensaje en terminal
+                terminal.appendOutput('Conexión establecida con el servidor Socket.IO', 'success');
+                terminal.appendOutput('Listo para procesar instrucciones en lenguaje natural', 'info');
+            }).catch(error => {
+                console.error('Error conectando a Socket.IO:', error);
+                showNotification('Error de conexión: ' + error.message, 'error');
+
+                // Mostrar mensaje en terminal
+                terminal.appendOutput('Error de conexión con el servidor Socket.IO', 'error');
+                terminal.appendOutput('Las funciones de procesamiento de lenguaje natural pueden estar limitadas', 'warning');
+            });
+
+            // Inicializar procesador
+            const processor = new AugmentLikeProcessor();
+
+            // Asignar socket al procesador
+            processor.socket = socketConnection.socket;
+
+            // Evento para procesar instrucción
+            processButton.addEventListener('click', async function() {
+                const text = naturalInput.value.trim();
+                if (!text) return;
+
+                // Mostrar indicador de procesamiento
+                resultContainer.innerHTML = '<div class="result-info"><i class="bi bi-hourglass-split"></i> Procesando solicitud...</div>';
+
+                // Mostrar en terminal
+                terminal.appendOutput(`Procesando: ${text}`, 'info');
+
+                try {
+                    // Procesar la solicitud
+                    const result = await processor.processRequest(text);
+
+                    // Mostrar resultado
+                    displayResult(result);
+
+                    // Mostrar en terminal
+                    if (result.success) {
+                        terminal.appendOutput(`✓ ${result.message}`, 'success');
+
+                        // Si hay un comando, mostrarlo y ejecutarlo
+                        if (result.command) {
+                            terminal.executeCommand(result.command);
+                        }
+                    } else {
+                        terminal.appendOutput(`✗ ${result.error || 'Error desconocido'}`, 'error');
+                    }
+
+                    // Si se creó o modificó un archivo, mostrar su contenido
+                    if (result.success && (result.type === 'createFile' || result.type === 'modifyFile')) {
+                        displayFilePreview(result);
+
+                        // Mostrar código en terminal
+                        displayCodeInTerminal(result);
+                    } else {
+                        filePreviewContainer.style.display = 'none';
+                    }
+
+                    // Mostrar notificación
+                    showNotification(
+                        result.success ? result.message : result.error,
+                        result.success ? 'success' : 'error'
+                    );
+
+                    // Limpiar input
+                    naturalInput.value = '';
+                } catch (error) {
+                    console.error('Error procesando solicitud:', error);
+                    resultContainer.innerHTML = `<div class="result-error">Error: ${error.message}</div>`;
+                    terminal.appendOutput(`Error: ${error.message}`, 'error');
+                    showNotification(`Error: ${error.message}`, 'error');
+                }
+            });
+
+            // Evento para Enter en el input
+            naturalInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    processButton.click();
+                }
+            });
+
+            // Evento para copiar contenido
+            copyContentButton.addEventListener('click', function() {
+                const content = fileContent.textContent;
+                navigator.clipboard.writeText(content)
+                    .then(() => showNotification('Contenido copiado al portapapeles', 'success'))
+                    .catch(err => showNotification('Error al copiar: ' + err, 'error'));
+            });
+
+            // Evento para limpiar terminal
+            clearTerminalButton.addEventListener('click', function() {
+                terminal.clear();
+            });
+
+            // Función para mostrar resultado
+            function displayResult(result) {
+                let html = '';
+
+                if (result.success) {
+                    html += `<div class="result-success"><i class="bi bi-check-circle"></i> ${result.message}</div>`;
+
+                    if (result.type === 'executeCommand' && result.commandInfo) {
+                        html += `<div class="result-info">Comando: <code>${result.commandInfo.command}</code></div>`;
+                    }
+                } else {
+                    html += `<div class="result-error"><i class="bi bi-x-circle"></i> ${result.error || 'Error desconocido'}</div>`;
+                }
+
+                resultContainer.innerHTML = html;
+            }
+
+            // Función para mostrar vista previa de archivo
+            function displayFilePreview(result) {
+                if (!result.fileInfo && !result.modificationInfo) return;
+
+                const fileName = result.fileInfo ? result.fileInfo.name : result.modificationInfo.fileName;
+                const content = result.content || '';
+
+                filePreviewTitle.textContent = fileName;
+                fileContent.textContent = content;
+                filePreviewContainer.style.display = 'block';
+            }
+
+            // Función para mostrar código en terminal
+            function displayCodeInTerminal(result) {
+                if (!result.content) return;
+
+                const fileName = result.fileInfo ? result.fileInfo.name : result.modificationInfo.fileName;
+
+                // Crear elemento para el código
+                const codeBlock = document.createElement('div');
+                codeBlock.className = 'code-block';
+
+                // Crear encabezado
+                const codeHeader = document.createElement('div');
+                codeHeader.className = 'code-header';
+                codeHeader.innerHTML = `<span class="code-title">${fileName}</span>`;
+
+                // Crear contenido
+                const codeContent = document.createElement('pre');
+                codeContent.textContent = result.content;
+
+                // Ensamblar
+                codeBlock.appendChild(codeHeader);
+                codeBlock.appendChild(codeContent);
+
+                // Añadir al terminal
+                terminal.output.appendChild(codeBlock);
+
+                // Scroll al final
+                terminal.output.scrollTop = terminal.output.scrollHeight;
+            }
+
+            // Función para mostrar notificación
+            function showNotification(message, type = 'info', autoClose = true) {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+
+                let icon = 'info-circle';
+                if (type === 'success') icon = 'check-circle';
+                if (type === 'warning') icon = 'exclamation-triangle';
+                if (type === 'error') icon = 'x-circle';
+
+                notification.innerHTML = `
+                    <i class="bi bi-${icon}"></i>
+                    <span>${message}</span>
+                    <button class="close-btn"><i class="bi bi-x"></i></button>
+                `;
+
+                notificationsContainer.appendChild(notification);
+
+                const closeBtn = notification.querySelector('.close-btn');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        notification.remove();
+                    });
+                }
+
+                if (autoClose) {
+                    setTimeout(() => {
+                        notification.classList.add('fade-out');
+                        setTimeout(() => notification.remove(), 500);
+                    }, 5000);
+                }
+            }
+
+            // Enfocar input al cargar
+            naturalInput.focus();
+        });
+    </script>
+</body>
+</html>

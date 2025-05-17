@@ -1,0 +1,70 @@
+/**
+ * CODESTORM - Variables CSS para la aplicación
+ * Este archivo define las variables CSS utilizadas en toda la aplicación
+ */
+
+:root {
+    /* Colores principales */
+    --dark-background: #121212;
+    --card-background: #1a1a1a;
+    --card-header: #212529;
+    --border-color: rgba(78, 115, 223, 0.2);
+    
+    /* Colores de texto */
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    
+    /* Colores de acento */
+    --highlight-color: #4e73df;
+    --medium-blue: #1E88E5;
+    --light-blue: #42a5f5;
+    --dark-blue: #1565c0;
+    
+    /* Colores de estado */
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    
+    /* Sombras */
+    --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --hover-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    
+    /* Espaciado */
+    --spacing-xs: 5px;
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+    
+    /* Bordes */
+    --border-radius-sm: 4px;
+    --border-radius-md: 6px;
+    --border-radius-lg: 8px;
+    
+    /* Transiciones */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* Variables para modo oscuro (por defecto) */
+body {
+    --bg-primary: var(--dark-background);
+    --bg-secondary: var(--card-background);
+    --bg-tertiary: var(--card-header);
+}
+
+/* Variables para modo claro (si se implementa) */
+body.light-mode {
+    --dark-background: #f8f9fa;
+    --card-background: #ffffff;
+    --card-header: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: rgba(0, 0, 0, 0.125);
+    
+    --bg-primary: var(--dark-background);
+    --bg-secondary: var(--card-background);
+    --bg-tertiary: var(--card-header);
+}

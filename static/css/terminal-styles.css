@@ -1,0 +1,132 @@
+/* Terminal styles for Augment-like interface */
+
+.terminal-container {
+    background-color: #1e1e1e;
+    border-radius: 6px;
+    margin: 15px 0;
+    overflow: hidden;
+    border: 1px solid rgba(78, 115, 223, 0.2);
+}
+
+.terminal-header {
+    background-color: #252526;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+}
+
+.terminal-title {
+    color: #e9ecef;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.terminal-output {
+    padding: 10px;
+    min-height: 150px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #e9ecef;
+}
+
+.terminal-line {
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.terminal-line.command {
+    color: #569cd6;
+}
+
+.terminal-line.error {
+    color: #f14c4c;
+}
+
+.terminal-line.success {
+    color: #6a9955;
+}
+
+.terminal-line.info {
+    color: #4fc1ff;
+}
+
+.terminal-prompt {
+    color: #569cd6;
+    margin-right: 5px;
+}
+
+.terminal-content {
+    display: inline;
+}
+
+/* Code display styles */
+.code-block {
+    background-color: #1e1e1e;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 10px 0;
+    overflow-x: auto;
+    border: 1px solid rgba(78, 115, 223, 0.2);
+}
+
+.code-block pre {
+    margin: 0;
+    color: #e9ecef;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.code-header {
+    background-color: #252526;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+    margin-bottom: 10px;
+}
+
+.code-title {
+    color: #e9ecef;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+/* Syntax highlighting */
+.code-keyword {
+    color: #569cd6;
+}
+
+.code-string {
+    color: #ce9178;
+}
+
+.code-comment {
+    color: #6a9955;
+}
+
+.code-number {
+    color: #b5cea8;
+}
+
+.code-function {
+    color: #dcdcaa;
+}
+
+.code-type {
+    color: #4ec9b0;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .terminal-output {
+        max-height: 200px;
+    }
+}

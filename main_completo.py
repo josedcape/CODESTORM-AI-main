@@ -76,9 +76,9 @@ def get_file_type(filename):
     """Determina el tipo de archivo basado en su extensión."""
     if not '.' in filename:
         return "text"
-    
+
     extension = filename.split('.')[-1].lower()
-    
+
     if extension in ['html', 'htm']:
         return "html"
     elif extension in ['css']:
@@ -104,19 +104,19 @@ def get_agent_system_prompt(agent_id):
 Tu enfoque principal es escribir código limpio, bien comentado y eficiente.
 Cuando te pidan generar archivos, asegúrate de incluir todos los detalles necesarios para que funcionen correctamente.
 Proporciona explicaciones claras sobre cómo funciona el código que generas.""",
-        
+
         'architect': """Eres un asistente especializado en arquitectura de software.
 Tu enfoque principal es diseñar estructuras y sistemas completos, prestando especial atención a la escalabilidad, mantenibilidad y patrones de diseño.
 Cuando generes archivos, asegúrate de explicar cómo encajan en la arquitectura general.""",
-        
+
         'advanced': """Eres un asistente avanzado especializado en soluciones de software sofisticadas.
 Tu enfoque principal es crear sistemas complejos con las mejores prácticas, optimizaciones avanzadas y técnicas modernas.
 Cuando generes archivos, incluye explicaciones detalladas de las decisiones de implementación y considera aspectos como rendimiento, seguridad y escalabilidad.""",
-        
+
         'general': """Eres un asistente general para ayudar con tareas de desarrollo.
 Tu objetivo es proporcionar respuestas claras y útiles, generar código cuando sea necesario, y explicar conceptos de manera accesible."""
     }
-    
+
     return prompts.get(agent_id, prompts['general'])
 
 def get_agent_name(agent_id):
@@ -134,7 +134,7 @@ def create_file_with_agent(description, file_ext, filename, agent_id, workspace)
     try:
         # Obtener el prompt de sistema según el agente
         system_prompt = get_agent_system_prompt(agent_id)
-        
+
         # Construir el prompt para generar el contenido del archivo
         prompt = f"""
 Necesito que generes el contenido para un archivo {file_ext} llamado {filename}.
@@ -143,15 +143,15 @@ Descripción: {description}
 Por favor, genera SOLO el contenido del archivo, sin explicaciones adicionales.
 El contenido debe ser completo, funcional y seguir las mejores prácticas para archivos {file_ext}.
 """
-        
+
         content = ""
-        
+
         # Intentar generar con OpenAI primero
         if os.environ.get('OPENAI_API_KEY'):
             try:
                 import openai
                 client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-                
+
                 completion = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
@@ -161,18 +161,18 @@ El contenido debe ser completo, funcional y seguir las mejores prácticas para a
                     temperature=0.7,
                     max_tokens=2000
                 )
-                
+
                 content = completion.choices[0].message.content.strip()
             except Exception as e:
                 logger.error(f"Error con OpenAI al generar archivo: {str(e)}")
                 # Intentar con otro modelo si OpenAI falla
-        
+
         # Si OpenAI falló o no está configurado, intentar con Anthropic
         if not content and os.environ.get('ANTHROPIC_API_KEY'):
             try:
                 import anthropic
                 client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-                
+
                 completion = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=2000,
@@ -180,18 +180,18 @@ El contenido debe ser completo, funcional y seguir las mejores prácticas para a
                     system=system_prompt,
                     messages=[{"role": "user", "content": prompt}]
                 )
-                
+
                 content = completion.content[0].text.strip()
             except Exception as e:
                 logger.error(f"Error con Anthropic al generar archivo: {str(e)}")
                 # Intentar con otro modelo si Anthropic falla
-        
+
         # Si los anteriores fallaron o no están configurados, intentar con Gemini
         if not content and os.environ.get('GEMINI_API_KEY'):
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-                
+
                 full_prompt = system_prompt + "\n\n" + prompt
                 model = genai.GenerativeModel('gemini-1.5-pro')
                 gemini_response = model.generate_content(full_prompt)
@@ -199,7 +199,7 @@ El contenido debe ser completo, funcional y seguir las mejores prácticas para a
             except Exception as e:
                 logger.error(f"Error con Gemini al generar archivo: {str(e)}")
                 # Si todos los modelos fallan, usar contenido de respaldo
-        
+
         # Si todos los modelos fallaron, usar contenido de respaldo
         if not content:
             if file_ext == 'py':
@@ -246,12 +246,12 @@ main();
 Este es un archivo de ejemplo generado según la descripción:
 "{description}"
 """
-        
+
         # Crear el archivo en el workspace del usuario
         file_path = os.path.join(workspace, filename)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
-        
+
         return {
             'success': True,
             'file_path': filename,
@@ -280,7 +280,7 @@ def chat():
     """Página de chat con agentes especializados."""
     agent_id = request.args.get('agent', 'general')
     return render_template(
-        'chat.html', 
+        'chat.html',
         agent_id=agent_id,
         agent_name=get_agent_name(agent_id)
     )
@@ -308,17 +308,22 @@ def preview():
     file_path = request.args.get('file', '')
     if not file_path or not file_path.endswith(('.html', '.htm')):
         return render_template('preview.html', error="Archivo no válido para previsualización")
-    
+
     user_id = session.get('user_id', 'default')
     workspace = get_user_workspace(user_id)
     full_path = os.path.join(workspace, file_path)
-    
+
     try:
         with open(full_path, 'r') as f:
             content = f.read()
         return render_template('preview.html', content=content, file_path=file_path)
     except Exception as e:
         return render_template('preview.html', error=str(e))
+
+@app.route('/augment-test')
+def augment_test():
+    """Página de prueba de integración estilo Augment."""
+    return render_template('test_augment_like.html')
 
 # Rutas para activos estáticos
 @app.route('/static/<path:filename>')
@@ -340,7 +345,7 @@ def list_files():
         directory = request.args.get('directory', '.')
         # Sanitize path to prevent directory traversal
         directory = os.path.normpath(directory)
-        
+
         # Get list of files and directories
         items = []
         for item in os.listdir(directory):
@@ -353,7 +358,7 @@ def list_files():
                 "size": os.path.getsize(item_path) if not is_dir else 0,
                 "modified": datetime.fromtimestamp(os.path.getmtime(item_path)).isoformat()
             })
-        
+
         return jsonify({
             "success": True,
             "directory": directory,
@@ -372,37 +377,37 @@ def create_file_api():
     user_id = request.json.get('user_id', session.get('user_id', 'default'))
     file_path = request.json.get('file_path')
     content = request.json.get('content', '')
-    
+
     if not file_path:
         return jsonify({
             'success': False,
             'error': 'Se requiere ruta de archivo'
         }), 400
-    
+
     try:
         workspace = get_user_workspace(user_id)
         full_path = os.path.join(workspace, file_path)
-        
+
         # Verificar path traversal
         if not os.path.normpath(full_path).startswith(os.path.normpath(workspace)):
             return jsonify({
                 'success': False,
                 'error': 'Ruta de archivo inválida'
             }), 400
-        
+
         # Crear directorios si no existen
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        
+
         # Escribir contenido al archivo
         with open(full_path, 'w', encoding='utf-8') as f:
             f.write(content)
-        
+
         # Notificar a clientes conectados
         socketio.emit('file_change', {
             'type': 'update',
             'file_path': file_path
         }, room=user_id)
-        
+
         return jsonify({
             'success': True,
             'file_path': file_path
@@ -419,35 +424,35 @@ def read_file_api():
     """API para leer el contenido de un archivo."""
     user_id = request.args.get('user_id', session.get('user_id', 'default'))
     file_path = request.args.get('file_path')
-    
+
     if not file_path:
         return jsonify({
             'success': False,
             'error': 'Se requiere ruta de archivo'
         }), 400
-    
+
     try:
         workspace = get_user_workspace(user_id)
         full_path = os.path.join(workspace, file_path)
-        
+
         # Verificar path traversal
         if not os.path.normpath(full_path).startswith(os.path.normpath(workspace)):
             return jsonify({
                 'success': False,
                 'error': 'Ruta de archivo inválida'
             }), 400
-        
+
         # Verificar que el archivo existe
         if not os.path.exists(full_path) or not os.path.isfile(full_path):
             return jsonify({
                 'success': False,
                 'error': 'El archivo no existe'
             }), 404
-        
+
         # Leer el archivo
         with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
             content = f.read()
-        
+
         return jsonify({
             'success': True,
             'file_path': file_path,
@@ -466,44 +471,44 @@ def delete_file_api():
     """API para eliminar un archivo o directorio."""
     user_id = request.json.get('user_id', session.get('user_id', 'default'))
     file_path = request.json.get('file_path')
-    
+
     if not file_path:
         return jsonify({
             'success': False,
             'error': 'Se requiere ruta de archivo'
         }), 400
-    
+
     try:
         workspace = get_user_workspace(user_id)
         full_path = os.path.join(workspace, file_path)
-        
+
         # Verificar path traversal
         if not os.path.normpath(full_path).startswith(os.path.normpath(workspace)):
             return jsonify({
                 'success': False,
                 'error': 'Ruta de archivo inválida'
             }), 400
-        
+
         # Verificar que existe
         if not os.path.exists(full_path):
             return jsonify({
                 'success': False,
                 'error': 'El archivo o directorio no existe'
             }), 404
-        
+
         # Eliminar
         if os.path.isdir(full_path):
             import shutil
             shutil.rmtree(full_path)
         else:
             os.remove(full_path)
-        
+
         # Notificar a clientes conectados
         socketio.emit('file_change', {
             'type': 'delete',
             'file_path': file_path
         }, room=user_id)
-        
+
         return jsonify({
             'success': True,
             'file_path': file_path
@@ -521,16 +526,16 @@ def execute_command_api():
     """API para ejecutar comandos directamente."""
     user_id = request.json.get('user_id', session.get('user_id', 'default'))
     command = request.json.get('command')
-    
+
     if not command:
         return jsonify({
             'success': False,
             'error': 'Se requiere un comando'
         }), 400
-    
+
     try:
         workspace = get_user_workspace(user_id)
-        
+
         process = subprocess.Popen(
             command,
             shell=True,
@@ -538,10 +543,10 @@ def execute_command_api():
             stderr=subprocess.PIPE,
             cwd=workspace
         )
-        
+
         stdout, stderr = process.communicate(timeout=30)
         status = process.returncode
-        
+
         result = {
             'success': True,
             'command': command,
@@ -549,10 +554,10 @@ def execute_command_api():
             'stderr': stderr.decode('utf-8', errors='replace'),
             'status': status
         }
-        
+
         # Notificar a clientes conectados
         socketio.emit('command_executed', result, room=user_id)
-        
+
         return jsonify(result)
     except subprocess.TimeoutExpired:
         return jsonify({
@@ -575,50 +580,50 @@ def chat_api():
     agent_id = request.json.get('agent_id', 'general')
     context = request.json.get('context', [])
     model = request.json.get('model', 'openai')
-    
+
     if not message:
         return jsonify({
             'success': False,
             'error': 'Se requiere un mensaje'
         }), 400
-    
+
     try:
         # Obtener el prompt de sistema según el agente
         system_prompt = get_agent_system_prompt(agent_id)
-        
+
         # Detectar si es una instrucción para crear un archivo
         file_creation_match = re.search(r'crea(?:r)?\s+(?:un|el|una|la)?\s+archivo\s+(?:de)?\s+([a-zA-Z0-9]+)\s+(?:llamado|con\s+nombre)?\s+([a-zA-Z0-9._-]+)', message, re.IGNORECASE)
-        
+
         # Detectar si es una instrucción para ejecutar un comando
         command_match = re.search(r'^ejecuta(?:r)?[:\s]+(.+)$', message, re.IGNORECASE)
-        
+
         if file_creation_match:
             file_ext = file_creation_match.group(1).lower()
             filename = file_creation_match.group(2)
-            
+
             # Asegurar que el nombre del archivo tiene la extensión correcta
             if not filename.endswith('.' + file_ext):
                 filename += '.' + file_ext
-            
+
             # Extraer la descripción del contenido
             description = message
-            
+
             # Crear el archivo usando el agente especializado
             workspace = get_user_workspace(user_id)
             result = create_file_with_agent(description, file_ext, filename, agent_id, workspace)
-            
+
             if result['success']:
                 response = f"He creado el archivo {filename} con el siguiente contenido:\n\n```\n{result['content'][:300]}{'...' if len(result['content']) > 300 else ''}\n```\n\n¿Necesitas que haga algún ajuste?"
             else:
                 response = f"Lo siento, tuve un problema al crear el archivo: {result['error']}"
-        
+
         # Detectar si es una instrucción para ejecutar un comando
         elif command_match:
             command = command_match.group(1).strip()
-            
+
             # Ejecutar el comando
             workspace = get_user_workspace(user_id)
-            
+
             process = subprocess.Popen(
                 command,
                 shell=True,
@@ -626,21 +631,21 @@ def chat_api():
                 stderr=subprocess.PIPE,
                 cwd=workspace
             )
-            
+
             stdout, stderr = process.communicate(timeout=30)
             status = process.returncode
-            
+
             # Formatear respuesta
             response = f"Ejecuté el comando: `{command}`\n\n"
-            
+
             if stdout:
                 response += f"**Salida:**\n```\n{stdout.decode('utf-8', errors='replace')}\n```\n\n"
-            
+
             if stderr:
                 response += f"**Errores:**\n```\n{stderr.decode('utf-8', errors='replace')}\n```\n\n"
-                
+
             response += f"Comando finalizado con código de estado: {status}"
-        
+
         # Para otros mensajes, usar un modelo de IA real
         else:
             # Preparar el contexto para el modelo
@@ -650,23 +655,23 @@ def chat_api():
                     "role": msg.get("role", "user"),
                     "content": msg.get("content", "")
                 })
-            
+
             # Añadir el mensaje actual
             formatted_context.append({
                 "role": "user",
                 "content": message
             })
-            
+
             # Generar respuesta con el modelo seleccionado
             if model == 'anthropic' and os.environ.get('ANTHROPIC_API_KEY'):
                 # Usar Anthropic Claude
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-                    
+
                     messages = [{"role": "system", "content": system_prompt}]
                     messages.extend(formatted_context)
-                    
+
                     completion = client.messages.create(
                         model="claude-3-5-sonnet-20241022",
                         messages=messages,
@@ -677,36 +682,36 @@ def chat_api():
                 except Exception as e:
                     logger.error(f"Error con Anthropic API: {str(e)}")
                     response = f"Lo siento, tuve un problema al procesar tu mensaje con Anthropic: {str(e)}"
-            
+
             elif model == 'gemini' and os.environ.get('GEMINI_API_KEY'):
                 # Usar Google Gemini
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-                    
+
                     # Construir el prompt con contexto
                     full_prompt = system_prompt + "\n\n"
-                    
+
                     for msg in formatted_context:
                         prefix = "Usuario: " if msg['role'] == 'user' else "Asistente: "
                         full_prompt += prefix + msg['content'] + "\n\n"
-                    
+
                     model = genai.GenerativeModel('gemini-1.5-pro')
                     gemini_response = model.generate_content(full_prompt)
                     response = gemini_response.text
                 except Exception as e:
                     logger.error(f"Error con Gemini API: {str(e)}")
                     response = f"Lo siento, tuve un problema al procesar tu mensaje con Gemini: {str(e)}"
-            
+
             else:
                 # OpenAI por defecto
                 try:
                     import openai
                     client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-                    
+
                     messages = [{"role": "system", "content": system_prompt}]
                     messages.extend(formatted_context)
-                    
+
                     completion = client.chat.completions.create(
                         model="gpt-4o",
                         messages=messages,
@@ -717,7 +722,7 @@ def chat_api():
                 except Exception as e:
                     logger.error(f"Error con OpenAI API: {str(e)}")
                     response = f"Lo siento, tuve un problema al procesar tu mensaje con OpenAI: {str(e)}"
-        
+
         return jsonify({
             'success': True,
             'message': message,
@@ -739,51 +744,51 @@ def process_code_api():
     code = request.json.get('code', '')
     language = request.json.get('language', 'python')
     instructions = request.json.get('instructions', 'Mejorar el código')
-    
+
     if not code:
         return jsonify({
             'success': False,
             'error': 'Se requiere código para procesar'
         }), 400
-    
+
     try:
         # En una implementación completa, aquí se conectaría con el servicio de IA
         # Por ahora, simulamos una respuesta con mejoras básicas
-        
+
         improved_code = code
-        
+
         # Simulamos algunas mejoras básicas según el lenguaje
         if language == 'python':
             # Añadir comentarios de docstring
             if 'def ' in code and '"""' not in code:
                 improved_code = improved_code.replace('def ', 'def ', 1)
                 improved_code = improved_code.replace(':', ':\n    """Descripción de la función.\n    \n    Returns:\n        Tipo de retorno: Descripción\n    """\n', 1)
-            
+
             # Añadir if __name__ == '__main__' si no existe
             if 'if __name__ == ' not in code and len(code.strip().split('\n')) > 5:
                 improved_code += '\n\nif __name__ == "__main__":\n    # Código para ejecutar cuando se llama directamente\n    pass\n'
-        
+
         elif language == 'javascript':
             # Convertir var a let/const
             improved_code = improved_code.replace('var ', 'const ')
-            
+
             # Añadir comentarios JSDoc si hay funciones
             if 'function ' in code and '/**' not in code:
                 improved_code = improved_code.replace('function ', '/**\n * Descripción de la función.\n * @param {Tipo} parametro - Descripción del parámetro\n * @returns {Tipo} Descripción del valor de retorno\n */\nfunction ', 1)
-        
+
         # Simulamos explicaciones de las mejoras
         explanations = [
             "He mejorado la documentación del código añadiendo docstrings o comentarios JSDoc.",
             "Estructura más clara y mantenible siguiendo las mejores prácticas.",
             "He seguido las convenciones de estilo estándar para " + language + "."
         ]
-        
+
         suggestions = [
             "Considera añadir manejo de errores con try/except (Python) o try/catch (JavaScript).",
             "Es buena práctica validar los parámetros de entrada en las funciones.",
             "Considera escribir pruebas unitarias para este código."
         ]
-        
+
         return jsonify({
             'success': True,
             'original_code': code,
@@ -807,39 +812,39 @@ def generate_file_api():
     file_type = request.json.get('file_type', 'html')
     filename = request.json.get('filename', '')
     agent_id = request.json.get('agent_id', 'general')
-    
+
     if not description:
         return jsonify({
             'success': False,
             'error': 'Se requiere una descripción del archivo a generar'
         }), 400
-    
+
     try:
         # Generar nombre de archivo si no se proporciona
         if not filename:
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             filename = f"generado_{timestamp}.{file_type}"
-        
+
         # Asegurar que la extensión coincide con el tipo de archivo
         if not filename.endswith('.' + file_type):
             filename += '.' + file_type
-        
+
         # Generar el archivo con el agente especializado
         workspace = get_user_workspace(user_id)
         result = create_file_with_agent(description, file_type, filename, agent_id, workspace)
-        
+
         if not result['success']:
             return jsonify({
                 'success': False,
                 'error': result['error']
             }), 500
-        
+
         # Notificar a clientes conectados
         socketio.emit('file_change', {
             'type': 'create',
             'file_path': filename
         }, room=user_id)
-        
+
         return jsonify({
             'success': True,
             'file_path': filename,
@@ -860,25 +865,25 @@ def process_instruction_api():
     """API para procesar instrucciones en lenguaje natural."""
     user_id = request.json.get('user_id', session.get('user_id', 'default'))
     instruction = request.json.get('instruction')
-    
+
     if not instruction:
         return jsonify({
             'success': False,
             'error': 'Se requiere una instrucción'
         }), 400
-    
+
     try:
         # Detectar patrones en la instrucción
         # Patrón para crear archivo
         file_creation_match = re.search(r'crea(?:r)?\s+(?:un|el|una|la)?\s+archivo\s+(?:de)?\s+([a-zA-Z0-9]+)\s+(?:llamado|con\s+nombre)?\s+([a-zA-Z0-9._-]+)', instruction, re.IGNORECASE)
-        
+
         # Patrón para ejecutar comando
         command_match = re.search(r'^ejecuta(?:r)?[:\s]+(.+)$', instruction, re.IGNORECASE)
-        
+
         if file_creation_match:
             file_type = file_creation_match.group(1).lower()
             filename = file_creation_match.group(2)
-            
+
             # Mapear tipos comunes
             type_mapping = {
                 'python': 'py',
@@ -889,17 +894,17 @@ def process_instruction_api():
                 'markdown': 'md',
                 'json': 'json'
             }
-            
+
             file_ext = type_mapping.get(file_type, file_type)
-            
+
             # Asegurar que el filename tiene la extensión correcta
             if not filename.endswith('.' + file_ext):
                 filename += '.' + file_ext
-            
+
             # Crear el archivo con un contenido simple de ejemplo
             workspace = get_user_workspace(user_id)
             full_path = os.path.join(workspace, filename)
-            
+
             # Contenido de ejemplo según el tipo
             if file_ext == 'py':
                 content = '# Archivo Python generado\n\ndef main():\n    print("Hola mundo")\n\nif __name__ == "__main__":\n    main()\n'
@@ -911,27 +916,27 @@ def process_instruction_api():
                 content = '/* Archivo CSS generado */\n\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n}\n'
             else:
                 content = f'Archivo de {file_type} generado automáticamente.'
-            
+
             # Crear directorios si no existen
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
             # Escribir contenido
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            
+
             return jsonify({
                 'success': True,
                 'action': 'create_file',
                 'file_path': filename,
                 'content': content
             })
-        
+
         elif command_match:
             command = command_match.group(1).strip()
-            
+
             # Ejecutar el comando
             workspace = get_user_workspace(user_id)
-            
+
             process = subprocess.Popen(
                 command,
                 shell=True,
@@ -939,10 +944,10 @@ def process_instruction_api():
                 stderr=subprocess.PIPE,
                 cwd=workspace
             )
-            
+
             stdout, stderr = process.communicate(timeout=30)
             status = process.returncode
-            
+
             return jsonify({
                 'success': True,
                 'action': 'execute_command',
@@ -951,14 +956,14 @@ def process_instruction_api():
                 'stderr': stderr.decode('utf-8', errors='replace'),
                 'status': status
             })
-        
+
         else:
             # En una implementación completa, aquí se conectaría con un LLM para interpretar la instrucción
             return jsonify({
                 'success': False,
                 'error': 'No pude entender la instrucción. Intenta con "crear archivo de [tipo] llamado [nombre]" o "ejecutar: [comando]".'
             }), 400
-    
+
     except Exception as e:
         logger.error(f"Error al procesar instrucción: {str(e)}")
         return jsonify({
@@ -986,10 +991,377 @@ def handle_join_workspace(data):
     join_room(workspace_id)
     emit('workspace_update', {'status': 'connected', 'workspace_id': workspace_id})
 
+@socketio.on('bash_command')
+def handle_bash_command(data):
+    """Ejecutar comandos bash vía Socket.IO."""
+    try:
+        command = data.get('command', '')
+        user_id = data.get('user_id', 'default')
+
+        if not command:
+            emit('command_result', {
+                'success': False,
+                'error': 'Se requiere un comando para ejecutar'
+            })
+            return
+
+        logger.info(f"Socket.IO - Ejecutando comando: '{command}'")
+
+        # Ejecutar el comando
+        workspace = get_user_workspace(user_id)
+
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=workspace
+        )
+
+        stdout, stderr = process.communicate(timeout=30)
+        status = process.returncode
+
+        # Enviar resultado
+        emit('command_result', {
+            'success': status == 0,
+            'command': command,
+            'output': stdout.decode('utf-8', errors='replace'),
+            'stderr': stderr.decode('utf-8', errors='replace'),
+            'status': status
+        })
+
+    except Exception as e:
+        logger.error(f"Error al ejecutar comando vía Socket.IO: {str(e)}")
+        logger.error(traceback.format_exc())
+        emit('command_result', {
+            'success': False,
+            'error': str(e)
+        })
+
+@socketio.on('natural_language')
+def handle_natural_language(data):
+    """Procesar instrucciones en lenguaje natural vía Socket.IO."""
+    try:
+        text = data.get('text', '')
+        user_id = data.get('user_id', 'default')
+
+        if not text:
+            emit('assistant_response', {
+                'success': False,
+                'error': 'Se requiere texto para procesar'
+            })
+            return
+
+        logger.info(f"Socket.IO - Procesando lenguaje natural: '{text}'")
+
+        # Detectar patrones en la instrucción
+        # Patrón para crear archivo
+        file_creation_match = re.search(r'crea(?:r)?\s+(?:un|el|una|la)?\s+(?:archivo|página|componente)\s+(?:de)?\s+([a-zA-Z0-9]+)\s+(?:llamado|con\s+nombre)?\s+([a-zA-Z0-9._-]+)?', text, re.IGNORECASE)
+
+        # Patrón para ejecutar comando
+        command_match = re.search(r'ejecuta(?:r)?[:\s]+(.+)$', text, re.IGNORECASE)
+
+        if file_creation_match:
+            file_type = file_creation_match.group(1).lower() if file_creation_match.group(1) else 'html'
+            filename = file_creation_match.group(2) if file_creation_match.group(2) else f"nuevo_{file_type}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            # Mapear tipos comunes
+            type_mapping = {
+                'python': 'py',
+                'javascript': 'js',
+                'html': 'html',
+                'css': 'css',
+                'texto': 'txt',
+                'markdown': 'md',
+                'json': 'json',
+                'web': 'html',
+                'página': 'html',
+                'pagina': 'html'
+            }
+
+            file_ext = type_mapping.get(file_type, file_type)
+
+            # Asegurar que el filename tiene la extensión correcta
+            if not filename.endswith('.' + file_ext):
+                filename += '.' + file_ext
+
+            # Crear el archivo con un contenido generado
+            workspace = get_user_workspace(user_id)
+            full_path = os.path.join(workspace, filename)
+
+            # Intentar generar contenido con IA si está configurada
+            content = None
+
+            # Si hay una API de IA configurada, usarla para generar contenido
+            if os.environ.get('OPENAI_API_KEY') or os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('GEMINI_API_KEY'):
+                try:
+                    # Usar la función existente para generar contenido
+                    result = create_file_with_agent(text, file_ext, filename, 'developer', workspace)
+                    if result['success']:
+                        content = result['content']
+                except Exception as e:
+                    logger.error(f"Error al generar contenido con IA: {str(e)}")
+
+            # Si no se pudo generar con IA, usar contenido predeterminado
+            if not content:
+                if file_ext == 'py':
+                    content = '# Archivo Python generado\n\ndef main():\n    print("Hola mundo")\n\nif __name__ == "__main__":\n    main()\n'
+                elif file_ext == 'js':
+                    content = '// Archivo JavaScript generado\n\nfunction main() {\n    console.log("Hola mundo");\n}\n\nmain();\n'
+                elif file_ext == 'html':
+                    content = '<!DOCTYPE html>\n<html>\n<head>\n    <title>Página generada</title>\n</head>\n<body>\n    <h1>Hola mundo</h1>\n</body>\n</html>\n'
+                elif file_ext == 'css':
+                    content = '/* Archivo CSS generado */\n\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n}\n'
+                else:
+                    content = f'Archivo de {file_type} generado automáticamente.'
+
+            # Crear directorios si no existen
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+            # Escribir contenido
+            with open(full_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            # Notificar a clientes conectados
+            socketio.emit('file_change', {
+                'type': 'create',
+                'file_path': filename
+            }, room=user_id)
+
+            emit('assistant_response', {
+                'success': True,
+                'message': f'Archivo {filename} creado exitosamente',
+                'type': 'createFile',
+                'fileInfo': {
+                    'name': filename,
+                    'path': filename
+                },
+                'content': content,
+                'explanation': f'He creado un archivo {file_type} llamado {filename} según tu solicitud.'
+            })
+
+        elif command_match:
+            command = command_match.group(1).strip()
+
+            # Ejecutar el comando
+            workspace = get_user_workspace(user_id)
+
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=workspace
+            )
+
+            stdout, stderr = process.communicate(timeout=30)
+            status = process.returncode
+
+            # Notificar a clientes conectados
+            socketio.emit('command_executed', {
+                'command': command,
+                'output': stdout.decode('utf-8', errors='replace'),
+                'error': stderr.decode('utf-8', errors='replace'),
+                'status': status
+            }, room=user_id)
+
+            emit('assistant_response', {
+                'success': True,
+                'message': f'Comando ejecutado: {command}',
+                'type': 'executeCommand',
+                'command': command,
+                'commandInfo': {
+                    'command': command,
+                    'status': status
+                },
+                'output': stdout.decode('utf-8', errors='replace'),
+                'error': stderr.decode('utf-8', errors='replace'),
+                'explanation': f'He ejecutado el comando: {command}'
+            })
+
+        else:
+            # En una implementación completa, aquí se conectaría con un LLM para interpretar la instrucción
+            # Por ahora, devolver una respuesta genérica
+            emit('assistant_response', {
+                'success': True,
+                'message': f'He procesado tu solicitud: {text}',
+                'type': 'generic',
+                'explanation': f'He procesado la instrucción: "{text}"'
+            })
+
+    except Exception as e:
+        logger.error(f"Error al procesar lenguaje natural vía Socket.IO: {str(e)}")
+        logger.error(traceback.format_exc())
+        emit('assistant_response', {
+            'success': False,
+            'error': str(e)
+        })
+
 # Punto de entrada de la aplicación
 if __name__ == '__main__':
     import re
     socketio.run(app, host='127.0.0.1', port=5000, debug=True)
+
+# API para procesar lenguaje natural (para la interfaz estilo Augment)
+@app.route('/api/process_natural', methods=['POST'])
+def process_natural_api():
+    """API para procesar instrucciones en lenguaje natural para la interfaz estilo Augment."""
+    try:
+        data = request.json
+        text = data.get('text', '')
+        model = data.get('model', 'gemini')
+        user_id = data.get('user_id', session.get('user_id', 'default'))
+
+        if not text:
+            return jsonify({
+                'success': False,
+                'error': 'Se requiere texto para procesar'
+            }), 400
+
+        logger.info(f"Procesando lenguaje natural: '{text}'")
+
+        # Detectar patrones en la instrucción
+        # Patrón para crear archivo
+        file_creation_match = re.search(r'crea(?:r)?\s+(?:un|el|una|la)?\s+(?:archivo|página|componente)\s+(?:de)?\s+([a-zA-Z0-9]+)\s+(?:llamado|con\s+nombre)?\s+([a-zA-Z0-9._-]+)?', text, re.IGNORECASE)
+
+        # Patrón para ejecutar comando
+        command_match = re.search(r'ejecuta(?:r)?[:\s]+(.+)$', text, re.IGNORECASE)
+
+        if file_creation_match:
+            file_type = file_creation_match.group(1).lower() if file_creation_match.group(1) else 'html'
+            filename = file_creation_match.group(2) if file_creation_match.group(2) else f"nuevo_{file_type}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            # Mapear tipos comunes
+            type_mapping = {
+                'python': 'py',
+                'javascript': 'js',
+                'html': 'html',
+                'css': 'css',
+                'texto': 'txt',
+                'markdown': 'md',
+                'json': 'json',
+                'web': 'html',
+                'página': 'html',
+                'pagina': 'html'
+            }
+
+            file_ext = type_mapping.get(file_type, file_type)
+
+            # Asegurar que el filename tiene la extensión correcta
+            if not filename.endswith('.' + file_ext):
+                filename += '.' + file_ext
+
+            # Crear el archivo con un contenido generado
+            workspace = get_user_workspace(user_id)
+            full_path = os.path.join(workspace, filename)
+
+            # Intentar generar contenido con IA si está configurada
+            content = None
+
+            # Si hay una API de IA configurada, usarla para generar contenido
+            if os.environ.get('OPENAI_API_KEY') or os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('GEMINI_API_KEY'):
+                try:
+                    # Usar la función existente para generar contenido
+                    result = create_file_with_agent(text, file_ext, filename, 'developer', workspace)
+                    if result['success']:
+                        content = result['content']
+                except Exception as e:
+                    logger.error(f"Error al generar contenido con IA: {str(e)}")
+
+            # Si no se pudo generar con IA, usar contenido predeterminado
+            if not content:
+                if file_ext == 'py':
+                    content = '# Archivo Python generado\n\ndef main():\n    print("Hola mundo")\n\nif __name__ == "__main__":\n    main()\n'
+                elif file_ext == 'js':
+                    content = '// Archivo JavaScript generado\n\nfunction main() {\n    console.log("Hola mundo");\n}\n\nmain();\n'
+                elif file_ext == 'html':
+                    content = '<!DOCTYPE html>\n<html>\n<head>\n    <title>Página generada</title>\n</head>\n<body>\n    <h1>Hola mundo</h1>\n</body>\n</html>\n'
+                elif file_ext == 'css':
+                    content = '/* Archivo CSS generado */\n\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n}\n'
+                else:
+                    content = f'Archivo de {file_type} generado automáticamente.'
+
+            # Crear directorios si no existen
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+            # Escribir contenido
+            with open(full_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            # Notificar a clientes conectados
+            socketio.emit('file_change', {
+                'type': 'create',
+                'file_path': filename
+            }, room=user_id)
+
+            return jsonify({
+                'success': True,
+                'message': f'Archivo {filename} creado exitosamente',
+                'type': 'createFile',
+                'fileInfo': {
+                    'name': filename,
+                    'path': filename
+                },
+                'content': content,
+                'explanation': f'He creado un archivo {file_type} llamado {filename} según tu solicitud.'
+            })
+
+        elif command_match:
+            command = command_match.group(1).strip()
+
+            # Ejecutar el comando
+            workspace = get_user_workspace(user_id)
+
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=workspace
+            )
+
+            stdout, stderr = process.communicate(timeout=30)
+            status = process.returncode
+
+            # Notificar a clientes conectados
+            socketio.emit('command_executed', {
+                'command': command,
+                'output': stdout.decode('utf-8', errors='replace'),
+                'error': stderr.decode('utf-8', errors='replace'),
+                'status': status
+            }, room=user_id)
+
+            return jsonify({
+                'success': True,
+                'message': f'Comando ejecutado: {command}',
+                'type': 'executeCommand',
+                'command': command,
+                'commandInfo': {
+                    'command': command,
+                    'status': status
+                },
+                'output': stdout.decode('utf-8', errors='replace'),
+                'error': stderr.decode('utf-8', errors='replace'),
+                'explanation': f'He ejecutado el comando: {command}'
+            })
+
+        else:
+            # En una implementación completa, aquí se conectaría con un LLM para interpretar la instrucción
+            # Por ahora, devolver una respuesta genérica
+            return jsonify({
+                'success': True,
+                'message': f'He procesado tu solicitud: {text}',
+                'type': 'generic',
+                'explanation': f'He procesado la instrucción: "{text}"'
+            })
+
+    except Exception as e:
+        logger.error(f"Error al procesar lenguaje natural: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # Agregar estas rutas cerca de las otras definiciones de rutas API
 
